@@ -5,9 +5,9 @@ const repository = new PostRepository();
 
 export class PostController {
   async create(req: Request, res: Response) {
-    const { title, content, user_id } = req.body;
+    const { title, slug, content, user_id } = req.body;
 
-    await repository.create({ title, content, user_id });
+    await repository.create({title, slug, content, user_id,});
     return res.status(201).json({ message: "Post criado" });
   }
 
