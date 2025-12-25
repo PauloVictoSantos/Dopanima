@@ -1,15 +1,43 @@
 import { Request, Response } from "express";
 import { PostRepository } from "../repositories/PostRepository";
+import slugify from "slugify";
+import { PostCategoryRepository } from "../repositories/PostCategoryRepository";
 
 const repository = new PostRepository();
+const postCategoryRepository = new PostCategoryRepository();
 
 export class PostController {
   async create(req: Request, res: Response) {
-    const { title, slug, content, user_id } = req.body;
+    const { title, content, cover_image, excerpt, user_id, category_id } = req.body;
+  
+    if (!category_id) {
+      return res.status(400).json({ message: "Categoria é obrigatória" });
+    }
 
-    await repository.create({title, slug, content, user_id,});
-    return res.status(201).json({ message: "Post criado" });
+    const slug = slugify(title, {
+      lower: true,
+      strict: true,
+    });
+  
+    const result: any = await repository.create({
+      title,
+      slug,
+      content,
+      cover_image,
+      excerpt: excerpt ?? null,
+      user_id,
+    });
+    
+    const postId = result.insertId;
+    
+    await postCategoryRepository.create({
+      post_id: postId,
+      category_id,
+    });
+  
+    return res.status(201).json({ message: "Post criado",   post_id: postId,});
   }
+  
 
   async index(req: Request, res: Response) {
     const posts = await repository.findAll();

@@ -4,7 +4,7 @@ export interface Post {
   slug: string;
   excerpt?: string | null;
   content: string;
-  cover_image?: string | null;
+  cover_image: string | null;
   published?: boolean;
   views?: number;
   user_id: number;
