@@ -1,5 +1,7 @@
 import type { LucideIcon } from "lucide-react"
 import { CAT_COLOR, STATUS_COLOR, seoColor, thumbBg, type PostKind, type PostStatus } from "@/lib/dashboard"
+import { Label } from "@/components/ui/label"
+import { Switch as UiSwitch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
 export const inputCls =
@@ -89,18 +91,9 @@ export function PillTabs<K extends string>({
   )
 }
 
+/** Switch do shadcn/ui; ligado fica verde, como no resto do painel. */
 export function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
-  return (
-    <button
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={onToggle}
-      className={cn("h-6 w-11 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors", on ? "bg-dp-green" : "bg-white/18")}
-    >
-      <span className={cn("block size-5 rounded-full bg-white transition-transform", on && "translate-x-5")} />
-    </button>
-  )
+  return <UiSwitch checked={on} onCheckedChange={() => onToggle()} aria-label={label} className="data-checked:bg-dp-green" />
 }
 
 export function SwitchRow({ label, desc, on, onToggle, divider = true }: { label: string; desc?: string; on: boolean; onToggle: () => void; divider?: boolean }) {
@@ -117,7 +110,7 @@ export function SwitchRow({ label, desc, on, onToggle, divider = true }: { label
 
 export function Field({ label, aside, className, children }: { label: React.ReactNode; aside?: React.ReactNode; className?: string; children: React.ReactNode }) {
   return (
-    <label className={cn("flex min-w-0 flex-col gap-1.5 text-xs font-medium text-dp-muted", className)}>
+    <Label className={cn("flex min-w-0 flex-col items-stretch gap-1.5 text-xs leading-normal font-medium text-dp-muted", className)}>
       {aside ? (
         <span className="flex justify-between">
           {label}
@@ -127,7 +120,7 @@ export function Field({ label, aside, className, children }: { label: React.Reac
         label
       )}
       {children}
-    </label>
+    </Label>
   )
 }
 

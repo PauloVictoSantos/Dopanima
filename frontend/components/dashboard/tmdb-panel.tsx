@@ -2,16 +2,26 @@
 
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { ExternalLink, Film, Search, Star, Tv } from "lucide-react"
-import { Panel, inputCls, pillCls, selectCls } from "@/components/dashboard/ui"
+import { ExternalLink, Film, Search, Star, Tv, Wand2, X } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { errorMessage } from "@/lib/api"
-import { tmdbApi, type TmdbCard, type TmdbDetails, type TmdbType } from "@/lib/dashboard-api"
+import { tmdbApi, type TmdbCard, type TmdbDetails, type TmdbImage, type TmdbType } from "@/lib/dashboard-api"
 import { thumbBg } from "@/lib/dashboard"
 import { cn } from "@/lib/utils"
 
 type Link = { id: number; type: TmdbType } | null
 
-const small = "h-7.5 cursor-pointer rounded-full border px-3 text-xs font-semibold whitespace-nowrap"
+const TYPE_ITEMS = [
+  { value: "all", label: "Tudo" },
+  { value: "movie", label: "Filmes" },
+  { value: "tv", label: "Séries" },
+]
 
 /**
  * Painel do editor: vincula o post a um filme/série da TMDB e importa pôster ou
@@ -39,7 +49,6 @@ export function TmdbPanel({
   const [results, setResults] = useState<TmdbCard[] | null>(null)
   const [searching, setSearching] = useState(false)
   const [details, setDetails] = useState<TmdbDetails | null>(null)
-  const [tab, setTab] = useState<"posters" | "backdrops">("posters")
   const [importing, setImporting] = useState<string | null>(null)
 
   useEffect(() => {
@@ -60,6 +69,15 @@ export function TmdbPanel({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- key identifies the linked title
   }, [key, enabled])
+
+  const d = details && value && details.id === value.id && details.type === value.type ? details : null
+
+  // Repassa a ficha atual (ou null) para quem usa o painel.
+  const dKey = d ? `${d.type}:${d.id}` : ""
+  useEffect(() => {
+    onDetails?.(d)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dKey identifies the loaded title
+  }, [dKey])
 
   const search = async () => {
     if (!q.trim()) return
@@ -87,157 +105,154 @@ export function TmdbPanel({
     }
   }
 
-  const d = details && value && details.id === value.id && details.type === value.type ? details : null
-
-  // Repassa a ficha atual (ou null) para quem usa o painel.
-  const dKey = d ? `${d.type}:${d.id}` : ""
-  useEffect(() => {
-    onDetails?.(d)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- dKey identifies the loaded title
-  }, [dKey])
-
-  if (enabled === false)
-    return (
-      <Panel className="gap-2 p-4.5">
-        <h2 className="m-0 text-[15px] font-semibold">Filme ou série (TMDB)</h2>
-        <p className="m-0 text-xs leading-normal text-dp-muted">Integração desligada. Defina <code>TMDB_TOKEN</code> no <code>.env</code> da API para buscar capas, fichas técnicas e sugestões.</p>
-      </Panel>
-    )
-
-  const gallery = d ? (tab === "posters" ? d.images.posters : d.images.backdrops) : []
+  const gallery = (list: TmdbImage[], kind: "poster" | "backdrop") => (
+    <ScrollArea className="h-56">
+      <div className={cn("grid gap-1.5 pr-3", kind === "poster" ? "grid-cols-4" : "grid-cols-2")}>
+        {list.map((img) => (
+          <button
+            key={img.path}
+            onClick={() => importImage(img.path, kind)}
+            disabled={!!importing}
+            aria-label={`Usar ${kind === "poster" ? "pôster" : "cena"} ${img.lang ? `(${img.lang})` : ""}`}
+            className={cn(
+              "relative cursor-pointer rounded-md border-2 border-transparent p-0 hover:border-dp-yellow disabled:cursor-wait",
+              kind === "poster" ? "aspect-2/3" : "aspect-video",
+              importing === img.path && "animate-pulse border-dp-yellow"
+            )}
+            style={{ background: thumbBg(img.url) }}
+          >
+            {img.lang && <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1 text-[10px] font-semibold uppercase">{img.lang}</span>}
+          </button>
+        ))}
+        {!list.length && <span className="col-span-full text-xs text-muted-foreground">Nenhuma imagem disponível.</span>}
+      </div>
+    </ScrollArea>
+  )
 
   return (
-    <Panel className="gap-3 p-4.5">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="m-0 text-[15px] font-semibold">Filme ou série (TMDB)</h2>
+    <Card className="bg-white/3">
+      <CardHeader>
+        <CardTitle>Filme ou série (TMDB)</CardTitle>
+        <CardDescription>
+          {enabled === false
+            ? "Integração desligada: defina TMDB_TOKEN no .env da API."
+            : value
+              ? "Ficha técnica, onde assistir e recomendações aparecem no post."
+              : "Vincule o post a um título para mostrar ficha técnica e onde assistir."}
+        </CardDescription>
         {value && (
-          <button
-            onClick={() => {
-              onChange(null)
-              setDetails(null)
-            }}
-            className={cn(small, "border-[#FF8A73]/50 text-[#FF8A73]")}
-          >
-            Desvincular
-          </button>
-        )}
-      </div>
-
-      {value ? (
-        d ? (
-          <>
-            <div className="flex gap-3">
-              <span className="aspect-2/3 w-20 shrink-0 rounded-lg" style={{ background: thumbBg(d.poster) }} />
-              <span className="flex min-w-0 flex-col gap-1 text-xs text-dp-muted">
-                <span className="text-sm font-semibold text-white">
-                  {d.title} {d.year && <span className="font-normal text-dp-muted">({d.year})</span>}
-                </span>
-                <span>
-                  {d.type === "movie" ? "Filme" : "Série"} · {d.genres.slice(0, 3).join(", ")}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Star className="size-3 text-dp-yellow" fill="currentColor" aria-hidden /> {d.rating.toLocaleString("pt-BR")} · {d.directors.slice(0, 2).join(", ") || "—"}
-                </span>
-                <a href={d.tmdbUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-dp-lilac">
-                  Ver na TMDB <ExternalLink className="size-3" aria-hidden />
-                </a>
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              <button onClick={() => onFill({ title: d.title, overview: d.overview, tagline: d.tagline })} className={cn(small, "border-white/30 text-white hover:border-dp-yellow hover:text-dp-yellow")}>
-                Usar título e sinopse
-              </button>
-            </div>
-            {canImport && (
-              <>
-                <div className="flex gap-1.5">
-                  {(["posters", "backdrops"] as const).map((t) => (
-                    <button key={t} onClick={() => setTab(t)} aria-pressed={tab === t} className={pillCls(tab === t) + " h-7.5 px-3 text-xs"}>
-                      {t === "posters" ? `Pôsteres (${d.images.posters.length})` : `Cenas (${d.images.backdrops.length})`}
-                    </button>
-                  ))}
-                </div>
-                <span className="text-xs text-dp-muted">Clique numa imagem para usar como destaque (ela vai para a biblioteca de mídia).</span>
-                <div className={cn("grid gap-1.5", tab === "posters" ? "grid-cols-4" : "grid-cols-2")}>
-                  {gallery.map((img) => (
-                    <button
-                      key={img.path}
-                      onClick={() => importImage(img.path, tab === "posters" ? "poster" : "backdrop")}
-                      disabled={!!importing}
-                      aria-label={`Usar ${tab === "posters" ? "pôster" : "cena"} ${img.lang ? `(${img.lang})` : ""}`}
-                      className={cn(
-                        "relative cursor-pointer rounded-md border-2 border-transparent p-0 hover:border-dp-yellow disabled:cursor-wait",
-                        tab === "posters" ? "aspect-2/3" : "aspect-video",
-                        importing === img.path && "animate-pulse border-dp-yellow"
-                      )}
-                      style={{ background: thumbBg(img.url) }}
-                    >
-                      {img.lang && <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1 text-[10px] font-semibold uppercase">{img.lang}</span>}
-                    </button>
-                  ))}
-                  {!gallery.length && <span className="col-span-full text-xs text-dp-muted">Nenhuma imagem disponível.</span>}
-                </div>
-              </>
-            )}
-          </>
-        ) : (
-          <span className="text-xs text-dp-muted">Carregando ficha...</span>
-        )
-      ) : (
-        <>
-          <span className="text-xs leading-normal text-dp-muted">Vincule o post a um título para mostrar ficha técnica, onde assistir e recomendações no site.</span>
-          <div className="flex gap-1.5">
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  void search()
-                }
+          <CardAction>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive"
+              onClick={() => {
+                onChange(null)
+                setDetails(null)
               }}
-              placeholder="Buscar filme ou série"
-              aria-label="Buscar na TMDB"
-              className={inputCls + " h-9.5 min-w-0 flex-1 px-3"}
-            />
-            <select value={type} onChange={(e) => setType(e.target.value as TmdbType | "all")} aria-label="Tipo" className={selectCls + " h-9.5 w-24"}>
-              <option value="all">Tudo</option>
-              <option value="movie">Filmes</option>
-              <option value="tv">Séries</option>
-            </select>
-            <button onClick={search} disabled={searching} aria-label="Buscar" className="grid size-9.5 shrink-0 cursor-pointer place-items-center rounded-[10px] bg-dp-orange text-white disabled:opacity-60">
-              <Search className="size-4" aria-hidden />
-            </button>
-          </div>
-          {results && (
-            <div className="flex max-h-90 flex-col gap-1 overflow-y-auto pr-1">
-              {results.map((r) => (
-                <button
-                  key={`${r.type}-${r.id}`}
-                  onClick={() => {
-                    onChange({ id: r.id, type: r.type })
-                    setResults(null)
-                    setQ("")
-                  }}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-lg p-1.5 text-left hover:bg-white/6"
-                >
-                  <span className="aspect-2/3 w-9 shrink-0 rounded" style={{ background: thumbBg(r.poster) }} />
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="truncate text-[13px] font-semibold text-white">{r.title}</span>
-                    <span className="flex items-center gap-1.5 text-xs text-dp-muted">
-                      {r.type === "movie" ? <Film className="size-3" aria-hidden /> : <Tv className="size-3" aria-hidden />}
-                      {r.type === "movie" ? "Filme" : "Série"} {r.year && `· ${r.year}`}
-                      {r.postSlug && <span className="rounded-full bg-dp-green/20 px-1.5 text-[10px] font-semibold text-dp-green">já tem post</span>}
+            >
+              <X /> Desvincular
+            </Button>
+          </CardAction>
+        )}
+      </CardHeader>
+
+      {enabled !== false && (
+        <CardContent className="flex flex-col gap-3">
+          {value ? (
+            d ? (
+              <>
+                <div className="flex gap-3">
+                  <span className="aspect-2/3 w-20 shrink-0 rounded-lg" style={{ background: thumbBg(d.poster) }} />
+                  <div className="flex min-w-0 flex-col gap-1.5 text-xs text-muted-foreground">
+                    <span className="text-sm font-semibold text-white">
+                      {d.title} {d.year && <span className="font-normal text-muted-foreground">({d.year})</span>}
                     </span>
-                  </span>
-                </button>
-              ))}
-              {!results.length && <span className="p-2 text-xs text-dp-muted">Nada encontrado.</span>}
-            </div>
+                    <span className="flex flex-wrap gap-1">
+                      <Badge variant="outline">{d.type === "movie" ? "Filme" : "Série"}</Badge>
+                      {d.genres.slice(0, 2).map((g) => <Badge key={g} variant="secondary">{g}</Badge>)}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Star className="size-3 text-dp-yellow" fill="currentColor" aria-hidden /> {d.rating.toLocaleString("pt-BR")} · {d.directors.slice(0, 2).join(", ") || "—"}
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button variant="outline" size="xs" onClick={() => onFill({ title: d.title, overview: d.overview, tagline: d.tagline })}>
+                        <Wand2 /> Usar título e sinopse
+                      </Button>
+                      <Button variant="ghost" size="xs" nativeButton={false} render={<a href={d.tmdbUrl} target="_blank" rel="noreferrer" />}>
+                        TMDB <ExternalLink />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                {canImport && (
+                  <Tabs defaultValue="posters" className="gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <TabsList>
+                        <TabsTrigger value="posters" className="px-2.5 text-xs">Pôsteres ({d.images.posters.length})</TabsTrigger>
+                        <TabsTrigger value="backdrops" className="px-2.5 text-xs">Cenas ({d.images.backdrops.length})</TabsTrigger>
+                      </TabsList>
+                      <span className="text-[11px] text-muted-foreground">Clique para usar como capa</span>
+                    </div>
+                    <TabsContent value="posters">{gallery(d.images.posters, "poster")}</TabsContent>
+                    <TabsContent value="backdrops">{gallery(d.images.backdrops, "backdrop")}</TabsContent>
+                  </Tabs>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground">Carregando ficha...</span>
+            )
+          ) : (
+            <>
+              <form
+                className="flex gap-1.5"
+                onSubmit={(ev) => {
+                  ev.preventDefault()
+                  void search()
+                }}
+              >
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar filme ou série" aria-label="Buscar na TMDB" className="h-9 flex-1" />
+                <Select value={type} onValueChange={(v) => v && setType(v as TmdbType | "all")} items={TYPE_ITEMS}>
+                  <SelectTrigger className="h-9 w-28" aria-label="Tipo"><SelectValue /></SelectTrigger>
+                  <SelectContent>{TYPE_ITEMS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                </Select>
+                <Button type="submit" size="icon-lg" disabled={searching} aria-label="Buscar">
+                  <Search />
+                </Button>
+              </form>
+              {results && (
+                <ScrollArea className="h-72">
+                  <div className="flex flex-col gap-0.5 pr-3">
+                    {results.map((r) => (
+                      <button
+                        key={`${r.type}-${r.id}`}
+                        onClick={() => {
+                          onChange({ id: r.id, type: r.type })
+                          setResults(null)
+                          setQ("")
+                        }}
+                        className="flex cursor-pointer items-center gap-2.5 rounded-lg p-1.5 text-left hover:bg-white/6"
+                      >
+                        <span className="aspect-2/3 w-9 shrink-0 rounded" style={{ background: thumbBg(r.poster) }} />
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="truncate text-[13px] font-semibold text-white">{r.title}</span>
+                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            {r.type === "movie" ? <Film className="size-3" aria-hidden /> : <Tv className="size-3" aria-hidden />}
+                            {r.type === "movie" ? "Filme" : "Série"} {r.year && `· ${r.year}`}
+                            {r.postSlug && <Badge className="h-4 bg-dp-green/20 px-1.5 text-[10px] text-dp-green">já tem post</Badge>}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                    {!results.length && <span className="p-2 text-xs text-muted-foreground">Nada encontrado.</span>}
+                  </div>
+                </ScrollArea>
+              )}
+            </>
           )}
-        </>
+          <span className="text-[10px] text-[#9C8AA6]">Dados e imagens: TMDB</span>
+        </CardContent>
       )}
-      <span className="text-[10px] text-[#9C8AA6]">Dados e imagens: TMDB</span>
-    </Panel>
+    </Card>
   )
 }
