@@ -1,0 +1,222 @@
+// Schema do Dopanima (MySQL 8). Campos de "enum" são strings validadas na API
+// (ver src/lib/constants.ts). Colunas TEXT não aceitam DEFAULT no MySQL, então
+// content/seoReport/value são sempre preenchidos pelo código.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String    @db.VarChar(100)
+  email        String    @unique @db.VarChar(191)
+  passwordHash String    @db.VarChar(100)
+  /// super_admin | editor | author | reviewer | contributor | reader
+  role         String    @default("reader") @db.VarChar(20)
+  /// active | pending | suspended
+  status       String    @default("pending") @db.VarChar(20)
+  city         String    @default("") @db.VarChar(100)
+  color        String    @default("#5A0F6E") @db.VarChar(20)
+  bio          String    @default("") @db.VarChar(1000)
+  avatarUrl    String    @default("") @db.VarChar(500)
+  lastLoginAt  DateTime?
+  /// Incrementado ao trocar senha, função ou status: invalida as sessões abertas
+  tokenVersion       Int     @default(0)
+  /// Senha temporária (convite ou redefinição): precisa trocar antes de usar o painel
+  mustChangePassword Boolean @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  posts    Post[]
+  media    Media[]
+  comments Comment[]
+  saved    SavedPost[]
+}
+
+model Category {
+  id          Int     @id @default(autoincrement())
+  name        String  @db.VarChar(80)
+  slug        String  @db.VarChar(80)
+  description String  @default("") @db.VarChar(500)
+  imageUrl    String  @default("") @db.VarChar(1000)
+  color       String  @default("") @db.VarChar(20)
+  position    Int     @default(0)
+  parentId    Int?
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children Category[] @relation("CategoryTree")
+  posts    Post[]     @relation("PostCategory")
+  subPosts Post[]     @relation("PostSubcategory")
+
+  @@unique([parentId, slug])
+}
+
+model Tag {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(50)
+  slug      String    @unique @db.VarChar(60)
+  createdAt DateTime  @default(now())
+  posts     PostTag[]
+}
+
+model Media {
+  id          Int      @id @default(autoincrement())
+  /// Nome exibido no painel (editável)
+  name        String   @db.VarChar(200)
+  /// Arquivo em disco dentro de /uploads; vazio para mídias externas
+  filename    String   @default("") @db.VarChar(200)
+  /// URL externa (seed/importação). Quando vazia, a URL é montada a partir de `filename`
+  externalUrl String   @default("") @db.VarChar(1000)
+  mimeType    String   @default("") @db.VarChar(100)
+  /// image | video | audio | document
+  type        String   @db.VarChar(20)
+  size        Int      @default(0)
+  width       Int?
+  height      Int?
+  alt         String   @default("") @db.VarChar(300)
+  caption     String   @default("") @db.VarChar(500)
+  description String   @default("") @db.VarChar(2000)
+  folder      String   @default("Geral") @db.VarChar(60)
+  uploaderId  Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  uploader User?  @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
+  covers   Post[]
+}
+
+model Post {
+  id              Int       @id @default(autoincrement())
+  title           String    @db.VarChar(200)
+  slug            String    @unique @db.VarChar(191)
+  subtitle        String    @default("") @db.VarChar(300)
+  excerpt         String    @default("") @db.VarChar(500)
+  content         String    @db.LongText
+  /// draft | review | scheduled | published | archived | trash
+  status          String    @default("draft") @db.VarChar(20)
+  featured        Boolean   @default(false)
+  /// Filme ou série da TMDB ligado ao post (ficha técnica, onde assistir, sugestões)
+  tmdbId          Int?
+  /// movie | tv
+  tmdbType        String?   @db.VarChar(5)
+  /// Nota do autor da resenha, de 0 a 10 (passos de 0,5). Comparada com a nota do público na TMDB
+  authorRating    Float?
+  /// Obra resenhada (posts de livros)
+  book            String    @default("") @db.VarChar(200)
+  bookAuthor      String    @default("") @db.VarChar(200)
+  categoryId      Int?
+  subcategoryId   Int?
+  authorId        Int
+  coverId         Int?
+  publishedAt     DateTime?
+  scheduledAt     DateTime?
+  /// Quando foi para a lixeira; posts há mais de 30 dias na lixeira são apagados de vez
+  trashedAt       DateTime?
+  timezone        String    @default("America/Manaus") @db.VarChar(60)
+  focusKeyword    String    @default("") @db.VarChar(100)
+  metaTitle       String    @default("") @db.VarChar(120)
+  metaDescription String    @default("") @db.VarChar(320)
+  canonicalUrl    String    @default("") @db.VarChar(500)
+  index           Boolean   @default(true)
+  follow          Boolean   @default(true)
+  seoScore        Int       @default(0)
+  /// JSON com o último relatório do analisador de SEO
+  seoReport       String    @db.Text
+  views           Int       @default(0)
+  commentsCount   Int       @default(0)
+  engagement      Float     @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  category    Category? @relation("PostCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  subcategory Category? @relation("PostSubcategory", fields: [subcategoryId], references: [id], onDelete: SetNull)
+  author      User      @relation(fields: [authorId], references: [id])
+  cover       Media?    @relation(fields: [coverId], references: [id], onDelete: SetNull)
+  tags        PostTag[]
+  comments    Comment[]
+  viewStats   PostViewDaily[]
+  savedBy     SavedPost[]
+
+  @@index([status, publishedAt])
+}
+
+model PostTag {
+  postId Int
+  tagId  Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+}
+
+model Comment {
+  id          Int      @id @default(autoincrement())
+  postId      Int
+  /// Resposta a outro comentário (respostas da equipe)
+  parentId    Int?
+  /// Preenchido quando quem comentou é da equipe (resposta pelo painel)
+  userId      Int?
+  authorName  String   @db.VarChar(80)
+  authorEmail String   @db.VarChar(191)
+  content     String   @db.Text
+  /// pending | approved | spam | trash
+  status      String   @default("pending") @db.VarChar(20)
+  /// SHA-256 do IP com segredo do servidor (não guardamos o IP em claro)
+  ipHash      String   @default("") @db.VarChar(64)
+  userAgent   String   @default("") @db.VarChar(300)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("Replies")
+  user    User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([postId, status])
+}
+
+/// Visualizações agregadas por post, dia e origem (busca, social, direto, referência)
+model PostViewDaily {
+  postId Int
+  day    DateTime @db.Date
+  source String   @db.VarChar(20)
+  views  Int      @default(0)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([postId, day, source])
+  @@index([day])
+}
+
+/// Posts salvos por leitores (e pela equipe) no site
+model SavedPost {
+  userId    Int
+  postId    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([postId])
+}
+
+model Redirect {
+  id        Int      @id @default(autoincrement())
+  from      String   @unique @db.VarChar(191)
+  to        String   @db.VarChar(500)
+  hits      Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+/// Configurações do site em chave/valor (valores em JSON)
+model Setting {
+  key   String @id @db.VarChar(60)
+  value String @db.Text
+}
