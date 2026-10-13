@@ -51,6 +51,7 @@ export function toAdminPost(p: PostWithRelations, opts: { content?: boolean } = 
     author: authorDto(p.author),
     cover: p.cover ? { id: p.cover.id, url: mediaUrl(p.cover), alt: p.cover.alt } : null,
     tmdb: p.tmdbId && p.tmdbType ? { id: p.tmdbId, type: p.tmdbType } : null,
+    googleBooksId: p.googleBooksId,
     authorRating: p.authorRating,
     tags: p.tags.map((t) => t.tag.name),
     publishedAt: p.publishedAt,
@@ -101,6 +102,7 @@ export function toPublicPost(p: PostWithRelations) {
     tags: p.tags.map((t) => ({ name: t.tag.name, slug: t.tag.slug })),
     views: p.views,
     tmdb: p.tmdbId && p.tmdbType ? { id: p.tmdbId, type: p.tmdbType } : null,
+    googleBooksId: p.googleBooksId,
     /** Nota do autor (0 a 10) ou null. */
     authorRating: p.authorRating,
   }

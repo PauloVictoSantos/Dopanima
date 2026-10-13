@@ -19,6 +19,7 @@ import { siteRouter } from "./modules/site/site.routes"
 import { statsRouter } from "./modules/stats/stats.routes"
 import { tagsRouter } from "./modules/tags/tags.routes"
 import { publicTmdbRouter, tmdbRouter } from "./modules/tmdb/tmdb.routes"
+import { booksRouter, publicBooksRouter } from "./modules/books/books.routes"
 import { usersRouter } from "./modules/users/users.routes"
 
 export function createApp() {
@@ -75,10 +76,12 @@ export function createApp() {
   app.use("/api/stats", statsRouter)
   app.use("/api/seo", seoRouter)
   app.use("/api/tmdb", tmdbRouter)
+  app.use("/api/books", booksRouter)
 
   // Site público
   app.use("/api/public", siteRouter)
   app.use("/api/public", publicTmdbRouter)
+  app.use("/api/public", publicBooksRouter)
   app.use("/api/public", publicRouter)
   app.use("/", seoFilesRouter)
 

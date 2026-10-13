@@ -31,6 +31,8 @@ export type Post = {
   tags: { name: string; slug: string }[]
   /** Filme/série vinculado na TMDB. */
   tmdb: { id: number; type: "movie" | "tv" } | null
+  /** Livro vinculado no Google Books. */
+  googleBooksId: string | null
   /** Nota do autor da resenha (0 a 10) ou null. */
   authorRating: number | null
 }

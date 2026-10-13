@@ -4,9 +4,10 @@ import { AuthorAvatar, SaveButton } from "@/components/brand"
 import { RelatedCard } from "@/components/cards"
 import { BackButton, Reveal, ReadingProgress, ShareBar, ViewTracker } from "@/components/post/post-client"
 import { PostComments } from "@/components/post/post-comments"
+import { BookInfo } from "@/components/post/book-info"
 import { TmdbInfo, fmtRating } from "@/components/post/tmdb-info"
 import { TYPE_META, coverBg } from "@/lib/posts"
-import { getPostPage, getPostTmdb, resolveRedirect } from "@/lib/public-api"
+import { getPostBook, getPostPage, getPostTmdb, resolveRedirect } from "@/lib/public-api"
 
 export const dynamic = "force-dynamic"
 
@@ -51,8 +52,11 @@ export default async function PostPage({ params }: PageProps<"/post/[slug]">) {
   }
 
   const { post, related } = data
-  // Ficha da TMDB (se o post tiver filme/série vinculado). Falhas da TMDB não derrubam a página.
-  const tmdb = post.tmdb ? await getPostTmdb(post.slug) : null
+  // Ficha da TMDB (filme/série) ou do Google Books (livro), se vinculados. Falhas das APIs não derrubam a página.
+  const [tmdb, book] = await Promise.all([
+    post.tmdb ? getPostTmdb(post.slug) : null,
+    post.googleBooksId && post.type === "livro" ? getPostBook(post.slug) : null,
+  ])
   const meta = TYPE_META[post.type]
   // Nota do autor vira uma avaliação (Review) para o Google, além do artigo.
   const reviewType = post.type === "filme" ? "Movie" : post.type === "serie" ? "TVSeries" : post.type === "livro" ? "Book" : null
@@ -68,7 +72,11 @@ export default async function PostPage({ params }: PageProps<"/post/[slug]">) {
           itemReviewed: {
             "@type": reviewType,
             name: post.type === "livro" ? post.book || post.title : tmdb?.title || post.title,
-            ...(post.type === "livro" && post.bookAuthor ? { author: { "@type": "Person", name: post.bookAuthor } } : {}),
+            ...(post.type === "livro" && (post.bookAuthor || book?.authors.length)
+              ? { author: (post.bookAuthor ? [post.bookAuthor] : book!.authors).map((name) => ({ "@type": "Person", name })) }
+              : {}),
+            ...(book?.isbn13 || book?.isbn10 ? { isbn: book.isbn13 || book.isbn10 } : {}),
+            ...(book?.coverLarge ? { image: book.coverLarge } : {}),
             ...(tmdb?.releaseDate ? { dateCreated: tmdb.releaseDate } : {}),
             ...(tmdb?.directors.length && post.type === "filme" ? { director: tmdb.directors.map((name) => ({ "@type": "Person", name })) } : {}),
             ...(tmdb?.posterLarge ? { image: tmdb.posterLarge } : {}),
@@ -144,6 +152,7 @@ export default async function PostPage({ params }: PageProps<"/post/[slug]">) {
         )}
 
         {tmdb && <TmdbInfo t={tmdb} authorRating={post.authorRating} authorName={post.author.name} />}
+        {book && <BookInfo b={book} />}
 
         <ShareBar title={post.title} />
         <PostComments slug={post.slug} />

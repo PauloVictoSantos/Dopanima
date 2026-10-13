@@ -109,6 +109,8 @@ model Post {
   /// Obra resenhada (posts de livros)
   book            String    @default("") @db.VarChar(200)
   bookAuthor      String    @default("") @db.VarChar(200)
+  /// Volume do Google Books ligado ao post (ficha do livro, capa)
+  googleBooksId   String?   @db.VarChar(20)
   categoryId      Int?
   subcategoryId   Int?
   authorId        Int

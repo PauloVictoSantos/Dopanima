@@ -11,6 +11,7 @@ import { BookCard, NewsCard, PosterCard } from "@/components/cards"
 import { Hero } from "@/components/home/hero"
 import { BookFeature, FilmFeature } from "@/components/home/features"
 import { DopaIndica, Newsletter } from "@/components/home/extras"
+import { ReadNext } from "@/components/home/read-next"
 import { WatchNext } from "@/components/home/watch-next"
 import { FILTERS, FILTER_FN, searchPosts, type Filter, type HomeData, type Post, type PostType } from "@/lib/posts"
 import { cn } from "@/lib/utils"
@@ -157,6 +158,7 @@ export default function HomePage({ data }: { data: HomeData }) {
       </Rail>
 
       <WatchNext />
+      <ReadNext />
 
       <DopaIndica film={data.picks.film} book={data.picks.book} />
       <Newsletter />

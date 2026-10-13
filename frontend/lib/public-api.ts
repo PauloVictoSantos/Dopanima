@@ -1,9 +1,8 @@
 import "server-only"
+import type { PostBook } from "@/components/post/book-info"
 import type { PostTmdb } from "@/components/post/tmdb-info"
 import type { FullPost, HomeData, Post } from "@/lib/posts"
 
-// Fetch das páginas públicas, feito no servidor do Next. Sem cache: o conteúdo
-// muda pelo painel e deve aparecer na hora.
 
 const BASE = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333").replace(/\/$/, "")
 
@@ -30,5 +29,11 @@ export async function resolveRedirect(path: string) {
 /** Ficha da TMDB do título ligado ao post (vazia se não houver vínculo ou chave). */
 export async function getPostTmdb(slug: string) {
   const r = await get<{ enabled: boolean } & PostTmdb>(`/api/public/posts/${encodeURIComponent(slug)}/tmdb`).catch(() => null)
+  return r?.enabled ? r : null
+}
+
+/** Ficha do Google Books do livro ligado ao post (vazia se não houver vínculo). */
+export async function getPostBook(slug: string) {
+  const r = await get<{ enabled: boolean } & PostBook>(`/api/public/posts/${encodeURIComponent(slug)}/book`).catch(() => null)
   return r?.enabled ? r : null
 }

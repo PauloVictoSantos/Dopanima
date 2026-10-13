@@ -30,6 +30,13 @@ const schema = z
     TMDB_TOKEN: z.string().trim().optional(),
     TMDB_LANGUAGE: z.string().default("pt-BR"),
     TMDB_REGION: z.string().default("BR"),
+    /**
+     * Chave da Google Books API (console.cloud.google.com > Credenciais). Opcional: sem ela
+     * a busca de livros ainda funciona, mas com cota bem menor (compartilhada por IP).
+     */
+    GOOGLE_BOOKS_API_KEY: z.string().trim().optional(),
+    /** Idioma preferido nos resultados de livros (código de 2 letras). Vazio = todos. */
+    GOOGLE_BOOKS_LANGUAGE: z.string().trim().default("pt"),
   })
   .superRefine((e, ctx) => {
     if (e.NODE_ENV === "production" && (e.JWT_SECRET.length < 32 || WEAK_SECRETS.includes(e.JWT_SECRET)))

@@ -56,6 +56,8 @@ export type ApiPost = {
   author: { id: number; name: string; initials: string; color: string }
   cover: { id: number; url: string; alt: string } | null
   tmdb: { id: number; type: TmdbType } | null
+  /** Volume do Google Books ligado ao post (posts de livros). */
+  googleBooksId: string | null
   /** Nota do autor (0 a 10) ou null. */
   authorRating: number | null
   tags: string[]
@@ -135,7 +137,7 @@ export const toDashUser = (u: ApiUser): DashUser => ({
 export type PostPayload = Partial<{
   title: string; slug: string; subtitle: string; excerpt: string; content: string; status: string; featured: boolean
   book: string; bookAuthor: string; categoryId: number | null; subcategoryId: number | null; authorId: number; coverId: number | null
-  tmdbId: number | null; tmdbType: TmdbType | null; authorRating: number | null
+  tmdbId: number | null; tmdbType: TmdbType | null; googleBooksId: string | null; authorRating: number | null
   tags: string[]; scheduleDate: string; scheduleTime: string; timezone: string; focusKeyword: string; metaTitle: string
   metaDescription: string; canonicalUrl: string; index: boolean; follow: boolean
 }>
@@ -334,4 +336,27 @@ export const tmdbApi = {
   /** Baixa a imagem para a biblioteca de mídia e devolve o arquivo criado (ou o já existente). */
   importImage: (type: TmdbType, id: number, path: string, kind: "poster" | "backdrop") =>
     api.post<{ id: number; url: string; alt: string; reused: boolean }>(`/api/tmdb/${type}/${id}/import`, { path, kind }),
+}
+
+// ---------- Google Books ----------
+
+export type BookField = "all" | "title" | "author" | "isbn"
+export type BookCard = {
+  id: string; title: string; subtitle: string; authors: string[]; year: string; cover: string; url: string; postSlug?: string
+  /** Nota que o autor do post deu, se o livro tem resenha no blog. */
+  postRating?: number | null
+}
+export type BookDetails = BookCard & {
+  coverLarge: string; publisher: string; publishedDate: string; description: string; pageCount: number | null; categories: string[]
+  isbn13: string; isbn10: string; language: string
+  /** Nota média do público no Google Books, já em 0 a 10 (0 = sem nota). */
+  rating: number; votes: number; moreByAuthor: BookCard[]
+}
+
+export const booksApi = {
+  status: () => api.get<{ enabled: boolean; keyed: boolean; language: string }>("/api/books/status"),
+  search: (q: string, field: BookField = "all") => api.get<{ items: BookCard[]; total: number }>("/api/books/search", { q, field }),
+  details: (id: string) => api.get<BookDetails>(`/api/books/${encodeURIComponent(id)}`),
+  /** Baixa a capa para a biblioteca de mídia e devolve o arquivo criado (ou o já existente). */
+  importCover: (id: string) => api.post<{ id: number; url: string; alt: string; reused: boolean }>(`/api/books/${encodeURIComponent(id)}/import`),
 }

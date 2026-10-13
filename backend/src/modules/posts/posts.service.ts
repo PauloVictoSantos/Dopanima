@@ -39,6 +39,7 @@ export const postPatchSchema = z
     coverId: z.number().int().positive().nullable(),
     tmdbId: z.number().int().positive().nullable(),
     tmdbType: z.enum(["movie", "tv"]).nullable(),
+    googleBooksId: z.string().regex(/^[A-Za-z0-9_-]{8,20}$/, "ID de livro inválido").nullable(),
     /** Nota do autor, 0 a 10 em passos de 0,5. */
     authorRating: z.number().min(0, "A nota vai de 0 a 10").max(10, "A nota vai de 0 a 10").multipleOf(0.5, "Use passos de 0,5").nullable(),
     tags: z.array(z.string().trim().min(1).max(50)).max(30),
@@ -59,7 +60,7 @@ export type PostPatch = z.infer<typeof postPatchSchema>
 const DEFAULTS = {
   slug: "", subtitle: "", excerpt: "", content: "", status: "draft" as PostStatus, featured: false, book: "", bookAuthor: "",
   categoryId: null as number | null, subcategoryId: null as number | null, coverId: null as number | null, tags: [] as string[],
-  tmdbId: null as number | null, tmdbType: null as "movie" | "tv" | null, authorRating: null as number | null,
+  tmdbId: null as number | null, tmdbType: null as "movie" | "tv" | null, googleBooksId: null as string | null, authorRating: null as number | null,
   timezone: "America/Manaus", focusKeyword: "", metaTitle: "", metaDescription: "", canonicalUrl: "", index: true, follow: true,
 }
 export type PostInput = typeof DEFAULTS & Pick<PostPatch, "authorId" | "scheduleDate" | "scheduleTime"> & { title: string }
@@ -202,6 +203,7 @@ export async function createPost(actor: Actor, body: z.infer<typeof postCreateSc
       coverId: input.coverId,
       tmdbId: input.tmdbId && input.tmdbType ? input.tmdbId : null,
       tmdbType: input.tmdbId && input.tmdbType ? input.tmdbType : null,
+      googleBooksId: input.googleBooksId,
       authorRating: input.authorRating,
       authorId,
       timezone: input.timezone,
@@ -238,6 +240,7 @@ export async function updatePost(actor: Actor, id: number, patch: PostPatch) {
     coverId: current.coverId,
     tmdbId: current.tmdbId,
     tmdbType: (current.tmdbType as "movie" | "tv" | null) ?? null,
+    googleBooksId: current.googleBooksId,
     authorRating: current.authorRating,
     tags: current.tags.map((t) => t.tag.name),
     timezone: current.timezone,
@@ -277,6 +280,7 @@ export async function updatePost(actor: Actor, id: number, patch: PostPatch) {
         coverId: input.coverId,
         tmdbId: input.tmdbId && input.tmdbType ? input.tmdbId : null,
         tmdbType: input.tmdbId && input.tmdbType ? input.tmdbType : null,
+        googleBooksId: input.googleBooksId,
         authorRating: input.authorRating,
         authorId,
         timezone: input.timezone,
@@ -318,6 +322,7 @@ export async function duplicatePost(actor: Actor, id: number) {
       coverId: src.coverId,
       tmdbId: src.tmdbId,
       tmdbType: src.tmdbType,
+      googleBooksId: src.googleBooksId,
       authorRating: src.authorRating,
       authorId: actor.id,
       timezone: src.timezone,

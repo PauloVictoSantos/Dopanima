@@ -9,6 +9,7 @@ import {
   Strikethrough, Table, Underline, Undo2, Video, X,
 } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
+import { BooksPanel } from "@/components/dashboard/books-panel"
 import { TmdbPanel } from "@/components/dashboard/tmdb-panel"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -57,6 +58,8 @@ type Draft = {
   coverId: number | null
   coverUrl: string
   tmdb: { id: number; type: TmdbType } | null
+  /** Volume do Google Books (posts de livros). */
+  googleBooksId: string | null
   /** Nota do autor, 0 a 10 (passos de 0,5); null = sem nota. */
   authorRating: number | null
   status: PostStatus
@@ -100,6 +103,7 @@ function draftFrom(p: ApiPost | null, defaults: { categoryId: number | null; sub
     coverId: p?.cover?.id ?? null,
     coverUrl: p?.cover?.url ?? "",
     tmdb: p?.tmdb ?? null,
+    googleBooksId: p?.googleBooksId ?? null,
     authorRating: p?.authorRating ?? null,
     status: p ? (STATUS_LABEL[p.status] ?? "Rascunho") : "Rascunho",
     featured: p?.featured ?? false,
@@ -122,7 +126,7 @@ function draftFrom(p: ApiPost | null, defaults: { categoryId: number | null; sub
 
 // Campos que contam como "conteúdo do post" para saber se há alterações não salvas.
 const CONTENT_KEYS = [
-  "title", "slug", "subtitle", "excerpt", "html", "categoryId", "subcategoryId", "tags", "authorId", "coverId", "tmdb",
+  "title", "slug", "subtitle", "excerpt", "html", "categoryId", "subcategoryId", "tags", "authorId", "coverId", "tmdb", "googleBooksId",
   "authorRating", "featured", "book", "bookAuthor", "focus", "metaTitle", "metaDesc", "canonical", "index", "follow",
 ] as const
 type Snapshot = Pick<Draft, (typeof CONTENT_KEYS)[number]>
@@ -397,6 +401,35 @@ function Editor({ initial }: { initial: Draft }) {
   const readTime = `${report?.stats.readTimeMinutes ?? 1} min`
   const published = !!e.id && e.status === "Publicado"
 
+  // Busca no Google Books: aparece em Mídia e em Detalhes (onde a categoria Livros é escolhida).
+  const booksPanel = (
+    <BooksPanel
+      value={e.googleBooksId}
+      onChange={(googleBooksId) => {
+        set({ googleBooksId })
+        if (!googleBooksId) setTmdbRating(null)
+      }}
+      onDetails={(d) => setTmdbRating(d && d.rating > 0 ? d.rating : null)}
+      canImport={can("media")}
+      onCover={(m) => {
+        set({ coverId: m.id, coverUrl: m.url })
+        void reloadMedia()
+      }}
+      onFill={({ title, subtitle, description, authors }) => {
+        // Só preenche o que está vazio, para não apagar o que já foi escrito.
+        const patch: Partial<Draft> = {}
+        if (!e.book.trim()) patch.book = title
+        if (!e.bookAuthor.trim() && authors.length) patch.bookAuthor = authors.join(", ").slice(0, 200)
+        if (!e.title.trim()) patch.title = title
+        if (!e.subtitle.trim() && subtitle) patch.subtitle = subtitle
+        const first = description.split("\n\n")[0] ?? ""
+        if (!e.excerpt.trim() && first) patch.excerpt = first.length > 300 ? first.slice(0, 297).trimEnd() + "..." : first
+        touch(patch)
+        toast.success(Object.keys(patch).length ? "Campos vazios preenchidos com os dados do Google Books" : "Os campos já estavam preenchidos")
+      }}
+    />
+  )
+
   // ---------- salvar ----------
 
   const save = async (status: PostStatus) => {
@@ -419,6 +452,7 @@ function Editor({ initial }: { initial: Draft }) {
       coverId: e.coverId,
       tmdbId: e.tmdb?.id ?? null,
       tmdbType: e.tmdb?.type ?? null,
+      googleBooksId: e.googleBooksId,
       authorRating: e.authorRating,
       tags: e.tags,
       timezone: e.tz,
@@ -664,7 +698,7 @@ function Editor({ initial }: { initial: Draft }) {
                   className="grid aspect-video place-items-center rounded-lg border border-dashed border-white/25 text-xs text-muted-foreground"
                   style={{ background: e.coverUrl ? thumbBg(e.coverUrl) : "rgba(255,255,255,.03)" }}
                 >
-                  {e.coverUrl ? "" : "Escolha na biblioteca abaixo ou importe da TMDB"}
+                  {e.coverUrl ? "" : `Escolha na biblioteca abaixo ou importe ${kind === "Livro" ? "do Google Books" : "da TMDB"}`}
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">Biblioteca ({images.length})</span>
@@ -692,28 +726,32 @@ function Editor({ initial }: { initial: Draft }) {
               </CardContent>
             </Card>
 
-            <TmdbPanel
-              value={e.tmdb}
-              onChange={(tmdb) => {
-                set({ tmdb })
-                if (!tmdb) setTmdbRating(null)
-              }}
-              onDetails={(d) => setTmdbRating(d ? d.rating : null)}
-              canImport={can("media")}
-              onCover={(m) => {
-                set({ coverId: m.id, coverUrl: m.url })
-                void reloadMedia()
-              }}
-              onFill={({ title, overview, tagline }) => {
-                // Só preenche o que está vazio, para não apagar o que já foi escrito.
-                const patch: Partial<Draft> = {}
-                if (!e.title.trim()) patch.title = title
-                if (!e.subtitle.trim() && tagline) patch.subtitle = tagline
-                if (!e.excerpt.trim() && overview) patch.excerpt = overview.length > 300 ? overview.slice(0, 297).trimEnd() + "..." : overview
-                touch(patch)
-                toast.success(Object.keys(patch).length ? "Campos vazios preenchidos com os dados da TMDB" : "Título, subtítulo e resumo já estavam preenchidos")
-              }}
-            />
+            {kind === "Livro" ? (
+              booksPanel
+            ) : (
+              <TmdbPanel
+                value={e.tmdb}
+                onChange={(tmdb) => {
+                  set({ tmdb })
+                  if (!tmdb) setTmdbRating(null)
+                }}
+                onDetails={(d) => setTmdbRating(d ? d.rating : null)}
+                canImport={can("media")}
+                onCover={(m) => {
+                  set({ coverId: m.id, coverUrl: m.url })
+                  void reloadMedia()
+                }}
+                onFill={({ title, overview, tagline }) => {
+                  // Só preenche o que está vazio, para não apagar o que já foi escrito.
+                  const patch: Partial<Draft> = {}
+                  if (!e.title.trim()) patch.title = title
+                  if (!e.subtitle.trim() && tagline) patch.subtitle = tagline
+                  if (!e.excerpt.trim() && overview) patch.excerpt = overview.length > 300 ? overview.slice(0, 297).trimEnd() + "..." : overview
+                  touch(patch)
+                  toast.success(Object.keys(patch).length ? "Campos vazios preenchidos com os dados da TMDB" : "Título, subtítulo e resumo já estavam preenchidos")
+                }}
+              />
+            )}
           </TabsContent>
 
           {/* 3. DETALHES */}
@@ -799,6 +837,7 @@ function Editor({ initial }: { initial: Draft }) {
                 </FormField>
               </CardContent>
             </Card>
+            {kind === "Livro" && booksPanel}
 
             <div className="flex flex-col gap-4">
               <Card className="bg-white/3">
@@ -826,7 +865,7 @@ function Editor({ initial }: { initial: Draft }) {
                       <div className="flex justify-between text-[11px] text-[#9C8AA6]"><span>0</span><span>5</span><span>10</span></div>
                       {tmdbRating != null && tmdbRating > 0 && (
                         <span className="text-xs text-muted-foreground">
-                          Público na TMDB: <b className="text-white">{fmtRating(tmdbRating)}</b> · você deu{" "}
+                          Público {kind === "Livro" ? "no Google Books" : "na TMDB"}: <b className="text-white">{fmtRating(tmdbRating)}</b> · você deu{" "}
                           <b style={{ color: e.authorRating >= tmdbRating ? "#8BE04E" : "#FF8A73" }}>
                             {e.authorRating === tmdbRating ? "a mesma nota" : `${fmtRating(Math.abs(e.authorRating - tmdbRating))} ${e.authorRating > tmdbRating ? "a mais" : "a menos"}`}
                           </b>
