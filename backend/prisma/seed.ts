@@ -6,6 +6,12 @@ import { PrismaClient } from "@prisma/client"
 import { slugify } from "../src/lib/slug"
 import { recalculateAll } from "../src/modules/seo/seo.service"
 
+// O seed apaga o banco inteiro e cria contas com senha conhecida: nunca em produção.
+if (process.env.NODE_ENV === "production") {
+  console.error("Seed bloqueado: NODE_ENV=production. Ele apagaria todos os dados do banco.")
+  process.exit(1)
+}
+
 const prisma = new PrismaClient()
 const PASSWORD = process.env.SEED_PASSWORD || "dopanima123"
 const DAY = 86400000

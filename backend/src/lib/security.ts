@@ -14,6 +14,22 @@ export const sessionCookie = (remember: boolean): CookieOptions => ({
   ...(remember ? { maxAge: 30 * 24 * 60 * 60 * 1000 } : {}),
 })
 
+/**
+ * "Dispositivo conhecido": depois de um login certo, o navegador guarda um HMAC do e-mail.
+ * Com ele, o dono da conta não cai no limite de tentativas por conta, que um atacante
+ * poderia esgotar de propósito para trancar a vítima do lado de fora.
+ */
+export const DEVICE_COOKIE = "dopanima_device"
+export const deviceToken = (email: string) => crypto.createHmac("sha256", env.JWT_SECRET).update(`device:${email.trim().toLowerCase()}`).digest("base64url")
+export const deviceCookie: CookieOptions = { httpOnly: true, secure: env.COOKIE_SECURE, sameSite: "lax", path: "/", maxAge: 180 * 24 * 60 * 60 * 1000 }
+
+/** Comparação em tempo constante (não vaza, pelo tempo de resposta, quantos caracteres batem). */
+export const safeEqual = (a: string, b: string) => {
+  const x = Buffer.from(a)
+  const y = Buffer.from(b)
+  return x.length === y.length && crypto.timingSafeEqual(x, y)
+}
+
 export function readCookie(req: Request, name: string) {
   const header = req.headers.cookie
   if (!header) return undefined

@@ -9,6 +9,7 @@ import {
   Strikethrough, Table, Underline, Undo2, Video, X,
 } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
+import { AiAssistant } from "@/components/dashboard/ai-assistant"
 import { BooksPanel } from "@/components/dashboard/books-panel"
 import { TmdbPanel } from "@/components/dashboard/tmdb-panel"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -293,6 +294,7 @@ function Editor({ initial }: { initial: Draft }) {
   const [saving, setSaving] = useState(false)
   const [report, setReport] = useState<SeoReport | null>(null)
   const [tmdbRating, setTmdbRating] = useState<number | null>(null)
+  const [aiOpen, setAiOpen] = useState(false)
   const [publishMode, setPublishMode] = useState<"now" | "schedule" | "review">("now")
   const bodyRef = useRef<HTMLDivElement>(null)
   const seedHtml = useRef(initial.html)
@@ -400,6 +402,48 @@ function Editor({ initial }: { initial: Draft }) {
   const words = report?.stats.words ?? 0
   const readTime = `${report?.stats.readTimeMinutes ?? 1} min`
   const published = !!e.id && e.status === "Publicado"
+
+  // ---------- assistente de IA ----------
+
+  const currentHtml = () => bodyRef.current?.innerHTML ?? e.html
+  const setBody = (html: string) => {
+    if (bodyRef.current) bodyRef.current.innerHTML = html
+    touch({ html })
+  }
+  /** Aplica a mudança da IA no corpo e oferece desfazer (o Ctrl+Z do navegador não pega isso). */
+  const applyAi = (html: string, label: string) => {
+    const before = currentHtml()
+    setBody(html)
+    toast.success(label, { action: { label: "Desfazer", onClick: () => setBody(before) } })
+  }
+  const aiCtx = {
+    title: e.title,
+    subtitle: e.subtitle,
+    kind,
+    work: kind === "Livro" ? [e.book, e.bookAuthor].filter(Boolean).join(", de ") : "",
+  }
+  const aiPanel = (
+    <AiAssistant
+      open={aiOpen}
+      onOpenChange={setAiOpen}
+      ctx={aiCtx}
+      getHtml={currentHtml}
+      onReplace={applyAi}
+      onAppend={(html, label) => applyAi(currentHtml() + html, label)}
+      onFill={(f, overwrite) => {
+        const pick = (cur: string, v: string) => (v && (overwrite || !cur.trim()) ? v : cur)
+        touch({
+          subtitle: pick(e.subtitle, f.subtitle),
+          excerpt: pick(e.excerpt, f.excerpt),
+          focus: pick(e.focus, f.focusKeyword),
+          metaTitle: pick(e.metaTitle, f.metaTitle),
+          metaDesc: pick(e.metaDesc, f.metaDescription),
+          tags: overwrite ? f.tags : [...new Set([...e.tags, ...f.tags])].slice(0, 30),
+        })
+        toast.success(overwrite ? "Campos substituídos pelas sugestões" : "Campos vazios preenchidos e tags adicionadas")
+      }}
+    />
+  )
 
   // Busca no Google Books: aparece em Mídia e em Detalhes (onde a categoria Livros é escolhida).
   const booksPanel = (
@@ -651,6 +695,16 @@ function Editor({ initial }: { initial: Draft }) {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <div className="ml-auto flex items-center gap-0.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-dp-yellow hover:text-dp-yellow"
+                      onMouseDown={(ev) => ev.preventDefault()}
+                      onClick={() => setAiOpen(true)}
+                    >
+                      <Sparkles /> IA
+                    </Button>
+                    <Separator orientation="vertical" className="mx-1 h-5" />
                     <Tooltip>
                       <TooltipTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Desfazer" onMouseDown={(ev) => ev.preventDefault()} onClick={() => exec("undo")} />}>
                         <Undo2 />
@@ -1141,6 +1195,7 @@ function Editor({ initial }: { initial: Draft }) {
           </div>
         </DialogContent>
       </Dialog>
+      {aiPanel}
     </main>
   )
 }

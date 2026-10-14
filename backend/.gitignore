@@ -1,5 +1,7 @@
 node_modules
 dist
-.env
+# Qualquer arquivo de ambiente (.env, .env.local, .env.production...), menos o exemplo.
+.env*
+!.env.example
 uploads/*
 !uploads/.gitkeep

@@ -3,7 +3,7 @@
 import { Router } from "express"
 import { z } from "zod"
 import { authenticate } from "../../middlewares/auth"
-import { POST_STATUSES } from "../../lib/constants"
+import { POST_STATUSES, can } from "../../lib/constants"
 import { relativeTime } from "../../lib/format"
 import { mediaUrl } from "../../lib/media-url"
 import { prisma } from "../../lib/prisma"
@@ -26,6 +26,17 @@ statsRouter.get("/overview", authenticate, async (req, res) => {
   const prevFrom = new Date(from.getTime() - days * DAY)
   const now = new Date()
 
+  // A visão geral é a home do painel (todo mundo da equipe abre), mas o que ela mostra
+  // segue as mesmas permissões do resto da API:
+  // - posts não publicados de outros autores só para quem tem "editAll";
+  // - comentários ainda não moderados só para quem tem "moderate";
+  // - cadastros de pessoas só para quem gerencia usuários.
+  const role = req.user!.role
+  const seesAllPosts = can(role, "editAll")
+  const moderates = can(role, "moderate")
+  const managesUsers = can(role, "users")
+  const ownOrPublished = seesAllPosts ? {} : { OR: [{ authorId: req.user!.id }, { status: "published" }] }
+
   const [daily, prevViews, sources, byPost, statusRows, allViews, comments, pendingList, users, newUsers, prevUsers, imagesNoAlt, lowSeo, nextScheduled] =
     await Promise.all([
       prisma.postViewDaily.groupBy({ by: ["day"], where: { day: { gte: from } }, _sum: { views: true } }),
@@ -35,18 +46,20 @@ statsRouter.get("/overview", authenticate, async (req, res) => {
       prisma.post.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.post.aggregate({ where: { status: { not: "trash" } }, _sum: { views: true } }),
       prisma.comment.groupBy({ by: ["status"], where: { parentId: null }, _count: { _all: true } }),
-      prisma.comment.findMany({
-        where: { status: "pending", parentId: null },
-        orderBy: { createdAt: "desc" },
-        take: 4,
-        include: { post: { select: { title: true } } },
-      }),
+      moderates
+        ? prisma.comment.findMany({
+            where: { status: "pending", parentId: null },
+            orderBy: { createdAt: "desc" },
+            take: 4,
+            include: { post: { select: { title: true } } },
+          })
+        : Promise.resolve([]),
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: from } } }),
       prisma.user.count({ where: { createdAt: { gte: prevFrom, lt: from } } }),
       prisma.media.count({ where: { type: "image", alt: "" } }),
       prisma.post.count({ where: { status: { not: "trash" }, seoScore: { lt: 65 } } }),
-      prisma.post.findFirst({ where: { status: "scheduled" }, orderBy: { scheduledAt: "asc" }, select: { title: true, scheduledAt: true } }),
+      prisma.post.findFirst({ where: { status: "scheduled", ...ownOrPublished }, orderBy: { scheduledAt: "asc" }, select: { title: true, scheduledAt: true } }),
     ])
 
   // série diária completa (dias sem visita = 0)
@@ -88,9 +101,9 @@ statsRouter.get("/overview", authenticate, async (req, res) => {
 
   // atividade recente: eventos reais do banco, mais novos primeiro
   const [recentPosts, recentComments, recentUsers] = await Promise.all([
-    prisma.post.findMany({ where: { status: { in: ["published", "scheduled", "review"] } }, orderBy: { updatedAt: "desc" }, take: 6, include: { author: { select: { name: true, color: true } } } }),
-    prisma.comment.findMany({ where: { parentId: null, status: { in: ["pending", "approved"] } }, orderBy: { createdAt: "desc" }, take: 6, include: { post: { select: { title: true } } } }),
-    prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 4, select: { name: true, color: true, createdAt: true } }),
+    prisma.post.findMany({ where: { status: { in: ["published", "scheduled", "review"] }, ...ownOrPublished }, orderBy: { updatedAt: "desc" }, take: 6, include: { author: { select: { name: true, color: true } } } }),
+    prisma.comment.findMany({ where: { parentId: null, status: { in: moderates ? ["pending", "approved"] : ["approved"] } }, orderBy: { createdAt: "desc" }, take: 6, include: { post: { select: { title: true } } } }),
+    managesUsers ? prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 4, select: { name: true, color: true, createdAt: true } }) : Promise.resolve([]),
   ])
   const verb: Record<string, string> = { published: "publicou", scheduled: "agendou", review: "enviou para revisão" }
   const activity = [

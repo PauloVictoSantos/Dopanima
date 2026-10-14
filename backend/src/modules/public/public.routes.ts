@@ -27,11 +27,11 @@ const findPosts = (where: Prisma.PostWhereInput, opts: { take?: number; skip?: n
   prisma.post.findMany({ where: { ...live(), ...where }, include: postInclude, orderBy: opts.orderBy ?? { publishedAt: "desc" }, take: opts.take, skip: opts.skip })
 
 const listSchema = z.object({
-  q: z.string().trim().default(""),
+  q: z.string().trim().max(100).default(""),
   type: z.enum(["filme", "livro", "serie", "noticia"]).optional(),
-  category: z.string().trim().optional(),
-  sub: z.string().trim().optional(),
-  tag: z.string().trim().optional(),
+  category: z.string().trim().max(191).optional(),
+  sub: z.string().trim().max(191).optional(),
+  tag: z.string().trim().max(191).optional(),
   sort: z.enum(["recent", "popular"]).default("recent"),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(24),

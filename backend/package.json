@@ -16,7 +16,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:check": "tsx scripts/db-check.ts",
-    "db:recount": "tsx scripts/recount.ts"
+    "db:recount": "tsx scripts/recount.ts",
+    "test:security": "tsx --test tests/security.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

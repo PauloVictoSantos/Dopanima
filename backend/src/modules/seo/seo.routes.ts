@@ -8,14 +8,14 @@ import { getSettings, settingsSchema, updateSettings } from "./settings.service"
 
 const analyzeSchema = z.object({
   postId: z.number().int().positive().optional(),
-  title: z.string().default(""),
-  slug: z.string().default(""),
-  excerpt: z.string().default(""),
+  title: z.string().max(200).default(""),
+  slug: z.string().max(191).default(""),
+  excerpt: z.string().max(500).default(""),
   content: z.string().max(500_000).default(""),
-  focusKeyword: z.string().default(""),
-  metaTitle: z.string().default(""),
-  metaDescription: z.string().default(""),
-  canonicalUrl: z.string().default(""),
+  focusKeyword: z.string().max(100).default(""),
+  metaTitle: z.string().max(120).default(""),
+  metaDescription: z.string().max(320).default(""),
+  canonicalUrl: z.string().max(500).default(""),
   index: z.boolean().default(true),
   coverId: z.number().int().positive().nullable().default(null),
 })
@@ -72,7 +72,7 @@ seoRouter.get("/redirects", requirePermission("seo"), async (_req, res) => {
 })
 
 seoRouter.post("/redirects", requirePermission("seo"), async (req, res) => {
-  const { from, to } = parse(z.object({ from: z.string().trim().min(1, "Preencha a origem"), to: z.string().trim().min(1, "Preencha o destino") }), req.body)
+  const { from, to } = parse(z.object({ from: z.string().trim().min(1, "Preencha a origem").max(500), to: z.string().trim().min(1, "Preencha o destino").max(500) }), req.body)
   res.status(201).json(await seo.createRedirect(from, to))
 })
 

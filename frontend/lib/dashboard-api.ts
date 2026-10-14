@@ -360,3 +360,21 @@ export const booksApi = {
   /** Baixa a capa para a biblioteca de mídia e devolve o arquivo criado (ou o já existente). */
   importCover: (id: string) => api.post<{ id: number; url: string; alt: string; reused: boolean }>(`/api/books/${encodeURIComponent(id)}/import`),
 }
+
+// ---------- Assistente de IA (Gemini) ----------
+
+export type AiContext = { title: string; subtitle: string; kind: string; work: string }
+export type AiSource = { title: string; url: string }
+export type AiStatus = { enabled: boolean; model: string; used: number; limit: number; remaining: number }
+export type AiFill = { subtitle: string; excerpt: string; focusKeyword: string; metaTitle: string; metaDescription: string; tags: string[] }
+export type AiNews = { headline: string; date: string; outlet: string; summary: string }
+
+export const aiApi = {
+  status: () => api.get<AiStatus>("/api/ai/status"),
+  draft: (c: AiContext & { notes: string }) => api.post<{ html: string }>("/api/ai/draft", c),
+  continue: (c: AiContext & { html: string }) => api.post<{ html: string }>("/api/ai/continue", c),
+  edit: (mode: "fix" | "improve" | "shorten", html: string) => api.post<{ html: string }>("/api/ai/edit", { mode, html }),
+  fill: (c: AiContext & { html: string }) => api.post<AiFill>("/api/ai/fill", c),
+  references: (c: AiContext & { html: string }) => api.post<{ summary: string; sources: AiSource[] }>("/api/ai/references", c),
+  news: (query: string) => api.post<{ items: AiNews[]; summary: string; sources: AiSource[] }>("/api/ai/news", { query }),
+}

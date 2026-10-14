@@ -18,7 +18,10 @@ export function ProfileView() {
   const [pw, setPw] = useState({ cur: "", nw: "", cf: "" })
   const [pwErr, setPwErr] = useState("")
   const [busy, setBusy] = useState(false)
+  // Trocar o e-mail (que é o login) pede a senha atual; a API confere.
+  const [emailPw, setEmailPw] = useState("")
   const mustChange = !!me?.mustChangePassword
+  const emailChanged = !!me && p.email.trim().toLowerCase() !== me.email
 
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) => setProfile((x) => ({ ...x, [key]: value }))
   const field = (key: TextKey, label: string, type = "text", ph = "") => (
@@ -48,7 +51,8 @@ export function ProfileView() {
   const saveProfile = async () => {
     setBusy(true)
     try {
-      setMe(await profileApi.update({ name: p.name, email: p.email, bio: p.bio }))
+      setMe(await profileApi.update({ name: p.name, email: p.email, bio: p.bio, ...(emailChanged ? { currentPassword: emailPw } : {}) }))
+      setEmailPw("")
       toast.success("Perfil salvo")
     } catch (e) {
       toast.error(errorMessage(e))
@@ -129,6 +133,11 @@ export function ProfileView() {
               {field("site", "Página de autor")}
               {field("insta", "Instagram", "text", "@usuario")}
               {field("x", "X", "text", "@usuario")}
+              {emailChanged && (
+                <Field label="Senha atual (para trocar o e-mail)">
+                  <input type="password" value={emailPw} onChange={(e) => setEmailPw(e.target.value)} autoComplete="current-password" className={inputCls} />
+                </Field>
+              )}
             </div>
             <Field label="Bio (aparece nos seus posts)">
               <textarea value={p.bio} onChange={(e) => set("bio", e.target.value)} rows={3} className={textareaCls} />

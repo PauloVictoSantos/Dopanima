@@ -5,7 +5,7 @@ import { z } from "zod"
 import { ROLE_PERMISSIONS, type Role } from "../../lib/constants"
 import { badRequest, conflict, forbidden, unauthorized } from "../../lib/http-error"
 import { prisma } from "../../lib/prisma"
-import { SESSION_COOKIE, passwordProblem, sessionCookie } from "../../lib/security"
+import { DEVICE_COOKIE, SESSION_COOKIE, deviceCookie, deviceToken, passwordProblem, readCookie, safeEqual, sessionCookie } from "../../lib/security"
 import { parse } from "../../lib/validate"
 import { authenticate, signToken } from "../../middlewares/auth"
 import { hashPassword, toUserDto } from "../users/users.service"
@@ -19,7 +19,7 @@ const loginSchema = z.object({
 const profileSchema = z
   .object({
     name: z.string().trim().min(1).max(100),
-    email: z.email("Digite um e-mail válido.").trim().toLowerCase(),
+    email: z.email("Digite um e-mail válido.").trim().toLowerCase().max(191),
     city: z.string().trim().max(100),
     bio: z.string().trim().max(1000),
     avatarUrl: z.string().trim().max(500).refine((v) => !v || /^https?:\/\//i.test(v), "A foto precisa ser uma URL http(s)"),
@@ -51,6 +51,13 @@ export const loginByAccount = rateLimit({
   keyGenerator: (req: Request) => `acct:${String(req.body?.email ?? "").trim().toLowerCase() || ipKeyGenerator(req.ip ?? "")}`,
   // Login certo não conta contra o limite da conta.
   skipSuccessfulRequests: true,
+  // Navegador onde a pessoa já entrou nessa conta não é barrado pelo limite da conta (só pelo de IP):
+  // assim um ataque contra o e-mail não tranca o dono do lado de fora.
+  skip: (req: Request) => {
+    const email = String(req.body?.email ?? "")
+    const device = readCookie(req, DEVICE_COOKIE)
+    return !!email && !!device && safeEqual(device, deviceToken(email))
+  },
 })
 
 export const authRouter = Router()
@@ -72,6 +79,7 @@ export async function logIn(req: Request, res: Response, opts: { panel: boolean 
     include: { _count: { select: { posts: true } } },
   })
   startSession(res, updated, remember)
+  res.cookie(DEVICE_COOKIE, deviceToken(updated.email), deviceCookie)
   return updated
 }
 
@@ -100,7 +108,11 @@ authRouter.patch("/me", authenticate, async (req, res) => {
   const { currentPassword, newPassword, ...data } = parse(profileSchema, req.body)
   const user = await prisma.user.findUniqueOrThrow({ where: { id: req.user!.id } })
   if (user.mustChangePassword && !newPassword) throw badRequest("Defina uma nova senha antes de alterar o perfil.")
-  if (data.email && data.email !== user.email && (await prisma.user.findUnique({ where: { email: data.email } })))
+  const emailChanged = !!data.email && data.email !== user.email
+  // O e-mail é o login: trocá-lo pede a senha atual, para uma sessão roubada não tomar a conta.
+  if (emailChanged && (!currentPassword || !(await bcrypt.compare(currentPassword, user.passwordHash))))
+    throw badRequest("Para trocar o e-mail, confirme sua senha atual.")
+  if (emailChanged && (await prisma.user.findUnique({ where: { email: data.email } })))
     throw conflict("Já existe um usuário com esse e-mail.")
 
   let passwordData = {}

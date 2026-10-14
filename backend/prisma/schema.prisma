@@ -36,6 +36,7 @@ model User {
   media    Media[]
   comments Comment[]
   saved    SavedPost[]
+  aiUsage  AiUsage[]
 }
 
 model Category {
@@ -184,6 +185,18 @@ model Comment {
 }
 
 /// Visualizações agregadas por post, dia e origem (busca, social, direto, referência)
+/// Uso diário do assistente de IA (Gemini) por pessoa, para o limite de uso.
+model AiUsage {
+  userId Int
+  day    DateTime @db.Date
+  count  Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, day])
+  @@index([day])
+}
+
 model PostViewDaily {
   postId Int
   day    DateTime @db.Date

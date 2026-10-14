@@ -8,6 +8,7 @@ import { env } from "./config/env"
 import { prisma } from "./lib/prisma"
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler"
 import { UPLOAD_PATH } from "./middlewares/upload"
+import { aiRouter } from "./modules/ai/ai.routes"
 import { authRouter } from "./modules/auth/auth.routes"
 import { categoriesRouter } from "./modules/categories/categories.routes"
 import { commentsRouter } from "./modules/comments/comments.routes"
@@ -77,6 +78,7 @@ export function createApp() {
   app.use("/api/seo", seoRouter)
   app.use("/api/tmdb", tmdbRouter)
   app.use("/api/books", booksRouter)
+  app.use("/api/ai", aiRouter)
 
   // Site público
   app.use("/api/public", siteRouter)

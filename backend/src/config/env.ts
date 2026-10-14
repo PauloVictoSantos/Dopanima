@@ -37,6 +37,13 @@ const schema = z
     GOOGLE_BOOKS_API_KEY: z.string().trim().optional(),
     /** Idioma preferido nos resultados de livros (código de 2 letras). Vazio = todos. */
     GOOGLE_BOOKS_LANGUAGE: z.string().trim().default("pt"),
+    /** Chave da API do Gemini (aistudio.google.com/apikey). Opcional: sem ela o assistente fica desligado. */
+    GEMINI_API_KEY: z.string().trim().optional(),
+    GEMINI_MODEL: z.string().trim().regex(/^[a-z0-9.-]+$/, "Nome de modelo inválido").default("gemini-2.5-flash"),
+    /** Pedidos ao assistente por pessoa, por dia. */
+    AI_DAILY_LIMIT: z.coerce.number().int().min(0).default(30),
+    /** Teto do blog inteiro por dia (protege a cota/fatura da chave). */
+    AI_DAILY_LIMIT_TOTAL: z.coerce.number().int().min(0).default(300),
   })
   .superRefine((e, ctx) => {
     if (e.NODE_ENV === "production" && (e.JWT_SECRET.length < 32 || WEAK_SECRETS.includes(e.JWT_SECRET)))

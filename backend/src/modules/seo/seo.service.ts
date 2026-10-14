@@ -218,6 +218,8 @@ export async function createRedirect(fromRaw: string, toRaw: string) {
   if (/^https?:\/\//i.test(from)) throw badRequest("A origem deve ser um caminho do site, como /url-antiga")
   if (/^\/(api|painel|login|uploads)(\/|$)/.test(from)) throw badRequest("Essa origem é reservada pelo sistema")
   // Destino: caminho do site ou URL http(s). Nada de javascript:, data:, //outro-site etc.
+  // Barra invertida fica de fora: o navegador lê "/\outro-site" como "//outro-site".
+  if (to.includes("\\")) throw badRequest("Destino inválido: use /caminho ou https://site.com/...")
   if (!/^\/(?!\/)\S*$/.test(to) && !/^https?:\/\/[^\s/]+(\/\S*)?$/i.test(to)) throw badRequest("Destino inválido: use /caminho ou https://site.com/...")
   if (from === to) throw badRequest("Origem e destino são iguais")
   if (await prisma.redirect.findUnique({ where: { from } })) throw conflict(`Já existe um redirecionamento de ${from}`)

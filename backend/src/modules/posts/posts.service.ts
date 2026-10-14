@@ -224,6 +224,10 @@ export async function createPost(actor: Actor, body: z.infer<typeof postCreateSc
 export async function updatePost(actor: Actor, id: number, patch: PostPatch) {
   const current = await load(id)
   if (!canEdit(actor, current.authorId)) throw forbidden("Você só pode editar os próprios posts")
+  // Quem não publica (colaborador) não mexe em post que já está no ar ou agendado: alterar o
+  // texto publicado, ou tirá-lo do ar, pularia a revisão de quem publicou.
+  if ((current.status === "published" || current.status === "scheduled") && !can(actor.role, "publish") && !can(actor.role, "editAll"))
+    throw forbidden("Este post já foi publicado ou agendado. Peça a um editor para alterá-lo.")
 
   const input = withDefaults({
     title: current.title,

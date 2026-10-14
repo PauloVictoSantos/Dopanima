@@ -38,7 +38,7 @@ const password = z.string().max(200)
 
 export const createSchema = z.object({
   name: z.string().trim().min(1, "Digite o nome.").max(100),
-  email: z.email("Digite um e-mail válido.").trim().toLowerCase(),
+  email: z.email("Digite um e-mail válido.").trim().toLowerCase().max(191),
   role: z.enum(ROLES).default("reader"),
   city: z.string().trim().max(100).default(""),
   password: password.optional(),
@@ -47,7 +47,7 @@ export const createSchema = z.object({
 export const updateSchema = z
   .object({
     name: z.string().trim().min(1).max(100),
-    email: z.email("Digite um e-mail válido.").trim().toLowerCase(),
+    email: z.email("Digite um e-mail válido.").trim().toLowerCase().max(191),
     role: z.enum(ROLES),
     status: z.enum(USER_STATUSES),
     city: z.string().trim().max(100),
