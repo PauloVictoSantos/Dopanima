@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { FileText, Music, Upload, Video, type LucideIcon } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { Field, PageHeading, PageMain, Panel, PillTabs, btnDanger, btnPrimary, inputCls, selectCls, textareaCls } from "@/components/dashboard/ui"
@@ -9,6 +9,7 @@ import { errorMessage } from "@/lib/api"
 import { MEDIA_CODE, mediaApi, toMediaItem, type MediaPatch } from "@/lib/dashboard-api"
 import type { MediaItem, MediaKind } from "@/lib/dashboard"
 import { cn } from "@/lib/utils"
+import { confirmDialog } from "@/components/confirm-dialog"
 
 const ICON: Record<Exclude<MediaKind, "Imagem">, LucideIcon> = { Vídeo: Video, Áudio: Music, Documento: FileText }
 const TYPES: { key: MediaKind | "Todos"; label: string }[] = [
@@ -286,7 +287,15 @@ function MediaDetail({ item, folders, editable, onSaved }: { item: MediaItem; fo
           </label>
           <button
             onClick={async () => {
-              if (item.usedIn && !window.confirm(`Este arquivo é capa de ${item.usedIn} post(s), que ficarão sem imagem. Excluir?`)) return
+              if (
+                item.usedIn &&
+                !(await confirmDialog({
+                  title: `Excluir "${item.name}"?`,
+                  description: `Este arquivo é a capa de ${item.usedIn} post(s), que ficarão sem imagem destacada.`,
+                  tone: "danger",
+                }))
+              )
+                return
               try {
                 await mediaApi.remove(item.id)
                 await onSaved("Arquivo excluído", item.usedIn > 0)

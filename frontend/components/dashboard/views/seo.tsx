@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { CircleCheck, CircleX, TriangleAlert } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { Field, PageHeading, PageMain, Panel, SeoBadge, Thumb, btnOutline, btnPrimary, inputCls, textareaCls } from "@/components/dashboard/ui"

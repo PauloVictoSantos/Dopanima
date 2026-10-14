@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { ChevronDown, ChevronUp, PenLine, Trash2 } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { RowActions } from "@/components/dashboard/row-actions"
@@ -10,6 +10,7 @@ import { errorMessage } from "@/lib/api"
 import { categoriesApi } from "@/lib/dashboard-api"
 import { thumbBg, type Category } from "@/lib/dashboard"
 import { cn } from "@/lib/utils"
+import { confirmDialog } from "@/components/confirm-dialog"
 
 type Form = { id: number | null; name: string; slug: string; desc: string; parent: string; img: string; color: string }
 const EMPTY: Form = { id: null, name: "", slug: "", desc: "", parent: "0", img: "", color: "" }
@@ -49,7 +50,12 @@ export function CategoriesView() {
 
   const remove = async (r: Category) => {
     const kids = cats.filter((c) => c.parent === r.id).length
-    if (!window.confirm(`Excluir "${r.name}"${kids ? ` e ${kids} subcategoria(s)` : ""}? Os posts ficam sem essa categoria.`)) return
+    const ok = await confirmDialog({
+      title: `Excluir a categoria "${r.name}"?`,
+      description: `${kids ? `As ${kids} subcategoria(s) dela também serão excluídas. ` : ""}Os posts ficam sem essa categoria.`,
+      tone: "danger",
+    })
+    if (!ok) return
     if (await run(() => categoriesApi.remove(r.id), `Categoria "${r.name}" excluída`)) {
       if (form.id === r.id) setForm(EMPTY)
       void reloadPosts()

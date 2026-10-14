@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Bookmark, LayoutDashboard, LogOut } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import {
   DropdownMenu,
   DropdownMenuContent,

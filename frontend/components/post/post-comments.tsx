@@ -3,10 +3,11 @@
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { motion } from "motion/react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { API_URL, api, errorMessage } from "@/lib/api"
 import { useSiteUser } from "@/lib/site-session"
 import { cn } from "@/lib/utils"
+import { confirmDialog } from "@/components/confirm-dialog"
 
 type PublicComment = {
   id: number
@@ -122,7 +123,7 @@ export function PostComments({ slug }: { slug: string }) {
   }
 
   const remove = async (c: PublicComment) => {
-    if (!window.confirm("Excluir seu comentário?")) return
+    if (!(await confirmDialog({ title: "Excluir seu comentário?", description: "Ele some do post e não pode ser recuperado.", tone: "danger" }))) return
     try {
       await api.del(`/api/public/me/comments/${c.id}`)
       toast.success("Comentário excluído")

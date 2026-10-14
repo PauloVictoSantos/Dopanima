@@ -1,14 +1,16 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import {
   AlignLeft, ArrowLeft, ArrowRight, Bold, Check, CheckSquare, ChevronDown, CircleAlert, CircleCheck, CircleX, Code, Eye, Heading1, Heading2,
   Heading3, ImageIcon, Italic, Link2, List, ListOrdered, Minus, Monitor, Music, Plus, Quote, Redo2, Smartphone, Sparkles, Star,
   Strikethrough, Table, Underline, Undo2, Video, X,
 } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
+import { confirmDialog, promptDialog } from "@/components/confirm-dialog"
 import { AiAssistant } from "@/components/dashboard/ai-assistant"
 import { BooksPanel } from "@/components/dashboard/books-panel"
 import { TmdbPanel } from "@/components/dashboard/tmdb-panel"
@@ -157,10 +159,22 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!)
 }
 
-const ask = (msg: string) => window.prompt(msg)?.trim()
+/** Pede um link num AlertDialog. A seleção do texto é guardada e devolvida ao editor depois. */
+async function ask(title: string, placeholder = "https://...") {
+  const sel = window.getSelection()
+  const range = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null
+  const value = await promptDialog({ title, label: "Endereço", placeholder, type: "text" })
+  const editable = (range?.startContainer.parentElement ?? null)?.closest<HTMLElement>("[contenteditable]")
+  if (range && editable) {
+    editable.focus()
+    sel!.removeAllRanges()
+    sel!.addRange(range)
+  }
+  return value?.trim()
+}
 
 type Exec = (cmd: string, val?: string) => void
-type Tool = { label: string; icon: React.ComponentType<{ className?: string }>; run: (ex: Exec) => void }
+type Tool = { label: string; icon: React.ComponentType<{ className?: string }>; run: (ex: Exec) => void | Promise<void> }
 
 // Barra de formatação: o essencial à vista, o resto em "Inserir".
 const FORMAT: Tool[][] = [
@@ -180,14 +194,14 @@ const FORMAT: Tool[][] = [
     { label: "Citação", icon: Quote, run: (ex) => ex("formatBlock", "blockquote") },
     { label: "Lista", icon: List, run: (ex) => ex("insertUnorderedList") },
     { label: "Lista numerada", icon: ListOrdered, run: (ex) => ex("insertOrderedList") },
-    { label: "Link", icon: Link2, run: (ex) => { const u = ask("URL do link (ex.: /post/duna ou https://...)"); if (u) ex("createLink", u) } },
+    { label: "Link", icon: Link2, run: async (ex) => { const u = await ask("Inserir link", "/post/duna ou https://..."); if (u) ex("createLink", u) } },
   ],
 ]
 const INSERT: Tool[] = [
-  { label: "Imagem por URL", icon: ImageIcon, run: (ex) => { const u = ask("URL da imagem"); if (u) ex("insertImage", u) } },
-  { label: "Vídeo", icon: Video, run: (ex) => { const u = ask("URL do vídeo"); if (u) ex("insertHTML", `<p data-embed="1">▶ Vídeo: ${escapeHtml(u)}</p>`) } },
-  { label: "Áudio", icon: Music, run: (ex) => { const u = ask("URL do áudio"); if (u) ex("insertHTML", `<p data-embed="1">♪ Áudio: ${escapeHtml(u)}</p>`) } },
-  { label: "Incorporar (Instagram, X, Spotify...)", icon: Sparkles, run: (ex) => { const u = ask("Link para incorporar"); if (u) ex("insertHTML", `<p data-embed="1">⧉ ${escapeHtml(u)}</p>`) } },
+  { label: "Imagem por URL", icon: ImageIcon, run: async (ex) => { const u = await ask("Inserir imagem por URL"); if (u) ex("insertImage", u) } },
+  { label: "Vídeo", icon: Video, run: async (ex) => { const u = await ask("Inserir vídeo"); if (u) ex("insertHTML", `<p data-embed="1">▶ Vídeo: ${escapeHtml(u)}</p>`) } },
+  { label: "Áudio", icon: Music, run: async (ex) => { const u = await ask("Inserir áudio"); if (u) ex("insertHTML", `<p data-embed="1">♪ Áudio: ${escapeHtml(u)}</p>`) } },
+  { label: "Incorporar (Instagram, X, Spotify...)", icon: Sparkles, run: async (ex) => { const u = await ask("Incorporar (Instagram, X, Spotify...)"); if (u) ex("insertHTML", `<p data-embed="1">⧉ ${escapeHtml(u)}</p>`) } },
   { label: "Tabela", icon: Table, run: (ex) => ex("insertHTML", "<table><tr><th>Coluna</th><th>Coluna</th></tr><tr><td>—</td><td>—</td></tr></table><p></p>") },
   { label: "Lista de tarefas", icon: CheckSquare, run: (ex) => ex("insertHTML", '<ul data-check="1"><li>Item</li></ul>') },
   { label: "Código", icon: Code, run: (ex) => ex("formatBlock", "pre") },
@@ -287,6 +301,7 @@ const GROUPS: [string, string][] = [
 
 function Editor({ initial }: { initial: Draft }) {
   const { cats, tags: allTags, media, authors, can, reloadPosts, reloadMedia } = useDashboard()
+  const router = useRouter()
   const [e, setE] = useState(initial)
   const [step, setStep] = useState<StepKey>("escrever")
   const [preview, setPreview] = useState(false)
@@ -340,10 +355,22 @@ function Editor({ initial }: { initial: Draft }) {
     const onClick = (ev: MouseEvent) => {
       const a = (ev.target as HTMLElement | null)?.closest("a[href]") as HTMLAnchorElement | null
       if (!a || a.target === "_blank" || ev.ctrlKey || ev.metaKey) return
-      if (!window.confirm("Você tem alterações não salvas neste post. Sair mesmo assim? (Uma cópia fica guardada neste navegador.)")) {
-        ev.preventDefault()
-        ev.stopPropagation()
-      }
+      ev.preventDefault()
+      ev.stopPropagation()
+      const href = a.href
+      void confirmDialog({
+        title: "Sair sem salvar?",
+        description: "Você tem alterações não salvas neste post. Uma cópia fica guardada neste navegador.",
+        confirmLabel: "Sair sem salvar",
+        tone: "danger",
+      }).then((ok) => {
+        if (!ok) return
+        window.removeEventListener("beforeunload", onUnload)
+        document.removeEventListener("click", onClick, true)
+        const url = new URL(href)
+        if (url.origin === window.location.origin) router.push(url.pathname + url.search + url.hash)
+        else window.location.assign(href)
+      })
     }
     window.addEventListener("beforeunload", onUnload)
     document.addEventListener("click", onClick, true)
@@ -351,7 +378,7 @@ function Editor({ initial }: { initial: Draft }) {
       window.removeEventListener("beforeunload", onUnload)
       document.removeEventListener("click", onClick, true)
     }
-  }, [dirty])
+  }, [dirty, router])
 
   // Análise de SEO ao vivo, feita pelo backend (debounce de 600 ms).
   useEffect(() => {
@@ -1102,7 +1129,15 @@ function Editor({ initial }: { initial: Draft }) {
                     <Button size="lg" className="h-11 rounded-full font-semibold" disabled={saving} onClick={() => save("Publicado")}>
                       Atualizar post
                     </Button>
-                    <Button variant="outline" disabled={saving} onClick={() => window.confirm("Tirar o post do ar e salvar como rascunho?") && save("Rascunho")}>
+                    <Button variant="outline" disabled={saving} onClick={async () => {
+                      const ok = await confirmDialog({
+                        title: "Tirar o post do ar?",
+                        description: "Ele sai do site e volta a ser rascunho. Você pode publicar de novo depois.",
+                        confirmLabel: "Tirar do ar",
+                        tone: "danger",
+                      })
+                      if (ok) void save("Rascunho")
+                    }}>
                       Tirar do ar (voltar para rascunho)
                     </Button>
                   </>

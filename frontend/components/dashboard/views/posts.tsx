@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { Archive, Calendar, Copy, Eye, Pause, PenLine, Send, Trash2, Undo2, XCircle } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { RowActions, type RowAction } from "@/components/dashboard/row-actions"
@@ -11,6 +11,7 @@ import { CatChip, PageHeading, PageMain, PillTabs, SeoBadge, StatusPill, Thumb, 
 import { errorMessage } from "@/lib/api"
 import { KIND_CATEGORY_SLUG, STATUS_CODE, postsApi, toDashPost } from "@/lib/dashboard-api"
 import { POST_KINDS, TYPE2CAT, fmtDate, nf, type DashPost, type PostKind, type PostStatus } from "@/lib/dashboard"
+import { confirmDialog } from "@/components/confirm-dialog"
 
 const STATUS_TABS: { key: PostStatus | "Todos"; label: string }[] = [
   { key: "Todos", label: "Todos" },
@@ -71,14 +72,27 @@ export function PostsView() {
   }
 
   // "Excluir definitivamente" apaga do banco (com confirmação); a lixeira guarda por 30 dias.
-  const purge = (p: DashPost) => {
-    if (!window.confirm(`Excluir "${p.title}" definitivamente? Isso apaga o post, os comentários e as estatísticas dele e não pode ser desfeito.`)) return
+  const purge = async (p: DashPost) => {
+    const ok = await confirmDialog({
+      title: `Excluir "${p.title}" definitivamente?`,
+      description: "Isso apaga o post, os comentários e as estatísticas dele. Não pode ser desfeito.",
+      confirmLabel: "Excluir definitivamente",
+      tone: "danger",
+    })
+    if (!ok) return
     void run(() => postsApi.remove(p.id), "Post excluído definitivamente")
   }
 
-  const emptyTrash = () => {
+  const emptyTrash = async () => {
     const n = countFor("Lixeira")
-    if (!n || !window.confirm(`Excluir definitivamente os ${n} post(s) da lixeira? Isso não pode ser desfeito.`)) return
+    if (!n) return
+    const ok = await confirmDialog({
+      title: "Esvaziar a lixeira?",
+      description: `Os ${n} post(s) da lixeira serão excluídos definitivamente. Isso não pode ser desfeito.`,
+      confirmLabel: "Esvaziar lixeira",
+      tone: "danger",
+    })
+    if (!ok) return
     void run(() => postsApi.emptyTrash(), `Lixeira esvaziada: ${n} post(s) excluído(s)`)
   }
 

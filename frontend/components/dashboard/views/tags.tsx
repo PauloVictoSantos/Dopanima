@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { PenLine, Trash2 } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { Field, IconAction, PageHeading, PageMain, Panel, btnOutline, btnPrimary, inputCls } from "@/components/dashboard/ui"
@@ -9,6 +9,7 @@ import { errorMessage } from "@/lib/api"
 import { tagsApi } from "@/lib/dashboard-api"
 import type { TagItem } from "@/lib/dashboard"
 import { cn } from "@/lib/utils"
+import { confirmDialog } from "@/components/confirm-dialog"
 
 type Form = { id: number | null; name: string; slug: string }
 const EMPTY: Form = { id: null, name: "", slug: "" }
@@ -48,7 +49,8 @@ export function TagsView() {
   }
 
   const remove = async (t: TagItem) => {
-    if (t.count && !window.confirm(`A tag #${t.name} está em ${t.count} post(s). Excluir mesmo assim?`)) return
+    if (t.count && !(await confirmDialog({ title: `Excluir a tag #${t.name}?`, description: `Ela está em ${t.count} post(s) e será removida deles.`, tone: "danger" })))
+      return
     if (await run(() => tagsApi.remove(t.id), `Tag #${t.name} excluída`)) {
       if (form.id === t.id) setForm(EMPTY)
       void reloadPosts()

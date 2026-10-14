@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { api, errorMessage } from "@/lib/api"
 import { useSiteUser } from "@/lib/site-session"
 

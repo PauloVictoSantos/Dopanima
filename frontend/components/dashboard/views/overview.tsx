@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { CircleCheck, CircleX, Eye, FileText, MessageSquare, MessagesSquare, TrendingUp, TriangleAlert, Users, type LucideIcon } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { Avatar, CatChip, Empty, PageMain, Panel, PillTabs, SectionTitle, SeoBadge, Thumb } from "@/components/dashboard/ui"

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { Calendar, FileText, Info, MessageSquare, Search, TriangleAlert, Users, type LucideIcon } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { PageHeading, PageMain, Panel, PillTabs, SwitchRow, btnOutline, btnPrimary } from "@/components/dashboard/ui"

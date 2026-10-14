@@ -46,6 +46,9 @@
   --color-dp-mascot: #ff8a3d;
   --color-dp-yellow: #f7e27a;
   --color-dp-green: #8be04e;
+  /* Status das mensagens: erro e alteração (sucesso usa o dp-green). */
+  --color-dp-red: #ff6b6b;
+  --color-dp-blue: #5ab8ff;
   --color-dp-lilac: #c9a0e0;
   --color-dp-muted: #cfcfcf;
   --color-dp-body: #ececec;

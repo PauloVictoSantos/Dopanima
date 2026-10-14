@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { Avatar, Field, PageHeading, PageMain, Panel, PillTabs, StatusPill, SwitchRow, btnPrimary, inputCls, textareaCls } from "@/components/dashboard/ui"
 import { errorMessage } from "@/lib/api"
 import { commentsApi, type ApiComment, type ApiCommentStatus, type ModerationRules } from "@/lib/dashboard-api"
 import { COMMENT_STATUS } from "@/lib/dashboard"
 import { cn } from "@/lib/utils"
+import { confirmDialog } from "@/components/confirm-dialog"
 
 type Tab = ApiCommentStatus | "all"
 type Tone = "ok" | "bad" | "plain"
@@ -89,9 +90,15 @@ export function CommentsView() {
     }
   }
 
-  const emptyTab = () => {
+  const emptyTab = async () => {
     const ids = items.map((c) => c.id)
-    if (!ids.length || !window.confirm(`Excluir definitivamente ${ids.length} comentário(s)?`)) return
+    if (!ids.length) return
+    const ok = await confirmDialog({
+      title: `Excluir ${ids.length} comentário(s) definitivamente?`,
+      description: "Eles somem do site e do painel. Isso não pode ser desfeito.",
+      tone: "danger",
+    })
+    if (!ok) return
     void run(() => commentsApi.bulk(ids, "delete"), `${ids.length} comentário(s) excluído(s)`)
   }
 

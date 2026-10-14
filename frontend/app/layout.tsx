@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Lilita_One, Poppins } from "next/font/google"
 import { MotionConfig } from "motion/react"
+import { DialogHost } from "@/components/confirm-dialog"
 import { Toaster } from "@/components/ui/sonner"
 import { SiteProvider } from "@/components/site-provider"
 import "./globals.css"
@@ -20,11 +21,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <MotionConfig reducedMotion="user">
           <SiteProvider>
             {children}
-            <Toaster
-              theme="dark"
-              position="bottom-center"
-              toastOptions={{ classNames: { toast: "!bg-dp-panel !border-dp-yellow/40 !text-white !font-sans !rounded-[14px]" } }}
-            />
+            {/* As mensagens são desenhadas por lib/toast.tsx (componente Alert); o sonner só posiciona. */}
+            <Toaster theme="dark" position="bottom-center" toastOptions={{ unstyled: true }} />
+            {/* Perguntas (confirmar, digitar um link...) em AlertDialog, no lugar de window.confirm/prompt. */}
+            <DialogHost />
           </SiteProvider>
         </MotionConfig>
       </body>

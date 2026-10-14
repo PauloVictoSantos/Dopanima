@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Mascot } from "@/components/brand"

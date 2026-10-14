@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { Check, X } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { Avatar, Field, PageHeading, PageMain, PillTabs, btnOutline, btnPrimary, inputCls, selectCls } from "@/components/dashboard/ui"
@@ -9,6 +9,7 @@ import { errorMessage } from "@/lib/api"
 import { ROLE_CODE, USER_STATUS_CODE, toDashUser, usersApi, type UserStats } from "@/lib/dashboard-api"
 import { ROLES, USER_ROLES, USER_ROLE_STYLE, USER_STATUS_COLOR, fmtDate, isEmail, nf, type DashUser, type UserRole, type UserStatus } from "@/lib/dashboard"
 import { cn } from "@/lib/utils"
+import { confirmDialog } from "@/components/confirm-dialog"
 
 type Tab = "all" | "team" | "readers" | "pending" | "suspended"
 const TABS: { key: Tab; label: string }[] = [
@@ -111,8 +112,12 @@ export function UsersView() {
     }
   }
 
-  const bulk = (action: "activate" | "suspend" | "delete", msg: string) => {
-    if (action === "delete" && !window.confirm(`Excluir ${selIds.length} usuário(s)? Os posts deles passam para você.`)) return
+  const bulk = async (action: "activate" | "suspend" | "delete", msg: string) => {
+    if (
+      action === "delete" &&
+      !(await confirmDialog({ title: `Excluir ${selIds.length} usuário(s)?`, description: "As contas são apagadas e os posts delas passam para você.", tone: "danger" }))
+    )
+      return
     void run(() => usersApi.bulk(selIds, action), msg).then((ok) => {
       if (ok && action === "delete") void reloadPosts()
     })
@@ -313,7 +318,7 @@ export function UsersView() {
                 }
               }}
               onRemove={async () => {
-                if (!window.confirm(`Excluir a conta de ${open.name}? Os posts passam para você.`)) return
+                if (!(await confirmDialog({ title: `Excluir a conta de ${open.name}?`, description: "A conta é apagada e os posts dela passam para você.", tone: "danger" }))) return
                 if (await run(() => usersApi.remove(open.id), `Conta de ${open.name} excluída`)) {
                   setOpenId(null)
                   void reloadPosts()

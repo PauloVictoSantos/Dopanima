@@ -1,6 +1,6 @@
 "use client"
 
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { Field, PageHeading, PageMain, Panel, SwitchRow, btnPrimary, inputCls, selectCls } from "@/components/dashboard/ui"
 import { TIMEZONES, type Settings } from "@/lib/dashboard"

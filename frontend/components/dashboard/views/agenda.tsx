@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState, useSyncExternalStore } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { Empty, PageHeading, PageMain, Panel, Thumb, btnPrimary } from "@/components/dashboard/ui"
 import { errorMessage } from "@/lib/api"

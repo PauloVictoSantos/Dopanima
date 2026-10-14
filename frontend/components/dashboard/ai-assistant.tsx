@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { BookCheck, ExternalLink, FileSearch, Newspaper, PenLine, Scissors, Sparkles, SpellCheck, Wand2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

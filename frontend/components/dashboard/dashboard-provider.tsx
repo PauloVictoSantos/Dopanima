@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { errorMessage } from "@/lib/api"
 import {
   categoriesApi, commentsApi, mediaApi, postsApi, tagsApi, toCategory, toDashPost, toMediaItem, usersApi, type Author,

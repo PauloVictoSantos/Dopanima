@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { Field, PageHeading, PageMain, Panel, SwitchRow, btnOutline, btnPrimary, inputCls, textareaCls } from "@/components/dashboard/ui"
 import { errorMessage } from "@/lib/api"
 import { ROLE_LABEL, mediaApi, profileApi } from "@/lib/dashboard-api"
 import { initials, nf, type Profile } from "@/lib/dashboard"
 import { setMe, signOutEverywhere } from "@/lib/session"
+import { confirmDialog } from "@/components/confirm-dialog"
 
 type TextKey = "name" | "email" | "site" | "insta" | "x"
 
@@ -173,7 +174,12 @@ export function ProfileView() {
               {!mustChange && (
                 <button
                   onClick={async () => {
-                    if (!window.confirm("Encerrar sua sessão em todos os dispositivos, inclusive este?")) return
+                    const ok = await confirmDialog({
+                      title: "Sair de todos os dispositivos?",
+                      description: "Sua sessão será encerrada em todos os navegadores, inclusive neste. Você vai precisar entrar de novo.",
+                      confirmLabel: "Sair de todos",
+                    })
+                    if (!ok) return
                     try {
                       await signOutEverywhere()
                       router.replace("/login")

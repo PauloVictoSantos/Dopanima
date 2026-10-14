@@ -1,7 +1,7 @@
 "use client"
 
 import { Fragment, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 import { Check } from "lucide-react"
 import { useDashboard } from "@/components/dashboard/dashboard-provider"
 import { Avatar, Field, PageHeading, PageMain, Panel, btnPrimary, inputCls, selectCls } from "@/components/dashboard/ui"
